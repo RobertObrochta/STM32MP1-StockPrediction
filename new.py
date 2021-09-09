@@ -39,12 +39,14 @@ if not os.path.isdir("data"):
 today_date = date.today()
 three_months_ago_today = today_date + relativedelta(months = -3)
 data_filename = os.path.join("data", f"STM-{today_date}.csv") 
-stock_ticker = "STM"
 
+# these variables can be altered to change the model
+stock_ticker = "STM"
 day_outlook = 1
 scale = True
 loss_function = "mae"
 window_size = 50
+epochs = 850
 
 '''
 End of Initialization Code ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -75,7 +77,7 @@ def prepare_data(ticker = stock_ticker, n_steps = window_size, scale = scale, sh
     prepped_result["Stock_data"] = gathered_data.copy()
 
     if scale:
-        Column_scalar = {}
+        column_scaler = {}
         # scale the data (prices) from 0 to 1
 
 
@@ -84,9 +86,9 @@ def prepare_data(ticker = stock_ticker, n_steps = window_size, scale = scale, sh
             gathered_data[column] = scaler.fit_transform(np.expand_dims(gathered_data[column].values, axis=1)
             
             )
-            Column_scalar[column] = scaler
+            column_scaler[column] = scaler
         # add the MinMaxScaler instances to the result returned
-        prepped_result["Column_scalar"] = Column_scalar
+        prepped_result["Column_scaler"] = column_scaler
 
     # add the target column by shifting by value of `lookup_step`
     gathered_data['Future'] = gathered_data['Close'].shift(-lookup_step)
@@ -122,9 +124,7 @@ def prepare_data(ticker = stock_ticker, n_steps = window_size, scale = scale, sh
     y = np.array(y)
     if split_by_date:
     #     # split the dataset into training & testing sets by date (not randomly splitting)
-        train_samples = int((1 
-        
-        - test_size) * len(X))
+        train_samples = int((1 - test_size) * len(X))
         prepped_result["X_train"] = X[:train_samples]
         prepped_result["Y_train"] = y[:train_samples]
         prepped_result["X_test"]  = X[train_samples:]
@@ -189,8 +189,8 @@ def get_final_df(model, data):
     # perform prediction and get prices
     y_pred = model.predict(X_test)
     if scale:
-        Y_test = np.squeeze(data["Column_scalar"]["Adj Close"].inverse_transform(np.expand_dims(Y_test, axis=0)))
-        y_pred = np.squeeze(data["Column_scalar"]["Adj Close"].inverse_transform(y_pred))
+        Y_test = np.squeeze(data["Column_scaler"]["Adj Close"].inverse_transform(np.expand_dims(Y_test, axis=0)))
+        y_pred = np.squeeze(data["Column_scaler"]["Adj Close"].inverse_transform(y_pred))
 
     test_df = data["Test_stock_data"]
     # add predicted future prices to the dataframe
@@ -218,9 +218,6 @@ def get_final_df(model, data):
 '''
 
 
-
-
-
 def predict(model, data):
     prediction_stats = [] # every piece of data we want will be in this array
     last_sequence = data["last_sequence"][-50:]
@@ -228,13 +225,13 @@ def predict(model, data):
 
     prediction = model.predict(last_sequence)
 
-    predicted_high = data["Column_scalar"]["High"].inverse_transform(prediction)[0][0]
-    predicted_low = data["Column_scalar"]["Low"].inverse_transform(prediction)[0][0]
-    predicted_open = data["Column_scalar"]["Open"].inverse_transform(prediction)[0][0]
-    predicted_close = data["Column_scalar"]["Close"].inverse_transform(prediction)[0][0]
-    predicted_vol = data["Column_scalar"]["Volume"].inverse_transform(prediction)[0][0]
+    predicted_high = data["Column_scaler"]["High"].inverse_transform(prediction)[0][0]
+    predicted_low = data["Column_scaler"]["Low"].inverse_transform(prediction)[0][0]
+    predicted_open = data["Column_scaler"]["Open"].inverse_transform(prediction)[0][0]
+    predicted_close = data["Column_scaler"]["Close"].inverse_transform(prediction)[0][0]
+    predicted_vol = data["Column_scaler"]["Volume"].inverse_transform(prediction)[0][0]
     if scale:
-        predicted_price_adjclose = data["Column_scalar"]["Adj Close"].inverse_transform(prediction)[0][0]
+        predicted_price_adjclose = data["Column_scaler"]["Adj Close"].inverse_transform(prediction)[0][0]
     else:
         predicted_price_adjclose = prediction[0][0]
 
@@ -261,7 +258,7 @@ model = create_model()
 checkpoint = ModelCheckpoint(os.path.join("results", model_descriptor + ".hdf5"), save_weights_only = True, save_best_only = True, verbose = 0)
 
 tensorboard = TensorBoard(log_dir = os.path.join("logs", model_descriptor)) # very optional for this project, but I'll keep it
-history = model.fit(data["X_train"], data["Y_train"], batch_size = 64, epochs = 7, validation_data = (data["X_test"], data["Y_test"]), callbacks = [checkpoint, tensorboard], verbose = 1)
+history = model.fit(data["X_train"], data["Y_train"], batch_size = 64, epochs = epochs, validation_data = (data["X_test"], data["Y_test"]), callbacks = [checkpoint, tensorboard], verbose = 1)
 
 
 model.load_weights(f"results/{model_descriptor}.hdf5")
@@ -269,7 +266,7 @@ model.load_weights(f"results/{model_descriptor}.hdf5")
 loss, mae = model.evaluate(data["X_test"], data["Y_test"], verbose = 1)
 
 if scale:
-    mean_absolute_error = data["Column_scalar"]["Adj Close"].inverse_transform([[mae]])[0][0]
+    mean_absolute_error = data["Column_scaler"]["Adj Close"].inverse_transform([[mae]])[0][0]
 else:
     mean_absolute_error = mae
 
