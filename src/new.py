@@ -27,18 +27,20 @@ import matplotlib.pyplot as matpl
 Initialization Code ..................................................................................................................................................................
 '''
 
+basepath = os.getcwd()[:-4] # gets everything until /src
+
 # creates these directories...
-if not os.path.isdir("results"):
-    os.mkdir("results")
-if not os.path.isdir("logs"):
-    os.mkdir("logs")
-if not os.path.isdir("data"):
-    os.mkdir("data")
+if not os.path.isdir(f"{basepath}/results"):
+    os.mkdir(f"{basepath}/results")
+if not os.path.isdir(f"{basepath}/logs"):
+    os.mkdir(f"{basepath}/logs")
+if not os.path.isdir(f"{basepath}/data"):
+    os.mkdir(f"{basepath}/data")
 
 # set date, create a file with that date, and saves it
 today_date = date.today()
 three_months_ago_today = today_date + relativedelta(months = -3)
-data_filename = os.path.join("data", f"STM-{today_date}.csv") 
+data_filename = os.path.join(f"{basepath}/data", f"STM-{today_date}.csv") 
 
 # these variables can be altered to change the model
 stock_ticker = "STM"
@@ -241,16 +243,16 @@ data = prepare_data()
 data["Stock Data"].to_csv(data_filename)
 
 model_descriptor = f"STM32MP1-{today_date}-{loss_function}-adam-lstm"
-model_file_name = os.path.join("results", f"STM-{today_date}.hdf5") 
+model_file_name = os.path.join(f"{basepath}/results", f"STM-{today_date}.hdf5") 
 model = create_model()
 
-checkpoint = ModelCheckpoint(os.path.join("results", model_descriptor + ".hdf5"), save_weights_only = True, save_best_only = True, verbose = 0)
+checkpoint = ModelCheckpoint(os.path.join(f"{basepath}/results", model_descriptor + ".hdf5"), save_weights_only = True, save_best_only = True, verbose = 0)
 
-tensorboard = TensorBoard(log_dir = os.path.join("logs", model_descriptor)) # very optional for this project, but I'll keep it
+tensorboard = TensorBoard(log_dir = os.path.join(f"{basepath}/logs", model_descriptor)) # very optional for this project, but I'll keep it
 history = model.fit(data["X_train"], data["Y_train"], batch_size = 64, epochs = epochs, validation_data = (data["X_test"], data["Y_test"]), callbacks = [checkpoint, tensorboard], verbose = 1)
 
 
-model.load_weights(f"results/{model_descriptor}.hdf5")
+model.load_weights(f"{basepath}/results/{model_descriptor}.hdf5")
 
 loss, mae = model.evaluate(data["X_test"], data["Y_test"], verbose = 1)
 
