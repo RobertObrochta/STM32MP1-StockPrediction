@@ -2,6 +2,7 @@
 from datetime import date
 from dateutil.relativedelta import *
 import time
+from tensorflow.python.keras.api._v1 import keras
 
 import yfinance as yfin
 
@@ -37,6 +38,8 @@ if not os.path.isdir(f"{basepath}/logs"):
     os.mkdir(f"{basepath}/logs")
 if not os.path.isdir(f"{basepath}/data"):
     os.mkdir(f"{basepath}/data")
+if not os.path.isdir(f"{basepath}/deployments"):
+    os.mkdir(f"{basepath}/deployments")
 
 # set date, create a file with that date, and saves it
 today_date = date.today()
@@ -49,8 +52,12 @@ day_outlook = 1
 scale = True
 loss_function = "mae"
 window_size = 50
-epochs = 850
+epochs = 8
 layers = 2
+dropout_amount = 0.4
+bidirectional_bool  = False
+
+date_with_outlook = today_date + relativedelta(days = +day_outlook)
 
 '''
 End of Initialization Code ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -71,7 +78,7 @@ def gather_data(ticker = stock_ticker): # gathers data from yfin package, copies
     return result
 
 
-def prepare_data(ticker = stock_ticker, n_steps = window_size, scale = scale, shuffle = True, lookup_step = day_outlook, split_by_date = True, test_size = 0.2, feature_columns = ["Volume", "Open", "High", "Low", "Close", "Adj Close"]):
+def prepare_data(n_steps = window_size, scale = scale, shuffle = True, lookup_step = day_outlook, split_by_date = True, test_size = 0.2, feature_columns = ["Volume", "Open", "High", "Low", "Close", "Adj Close"]):
 
     gathered_data = gather_data()
 
@@ -80,9 +87,6 @@ def prepare_data(ticker = stock_ticker, n_steps = window_size, scale = scale, sh
 
     if scale:
         column_scaler = {}
-        # scale the data (prices) from 0 to 1
-
-
         for column in feature_columns:
             scaler = preprocessing.MinMaxScaler()
             gathered_data[column] = scaler.fit_transform(np.expand_dims(gathered_data[column].values, axis=1))
@@ -106,36 +110,36 @@ def prepare_data(ticker = stock_ticker, n_steps = window_size, scale = scale, sh
     last_sequence = np.array(last_sequence).astype(np.float32)
     prepped_result["last_sequence"] = last_sequence
 
-    # X and Y
+    # X and Y (to be converted into numpy arrays)
     X, Y = [], []
     for seq, target in sequence_data:
         X.append(seq)
         Y.append(target)
-    # # # convert to numpy arrays
+
     X = np.array(X)
     Y = np.array(Y)
     if split_by_date:
-    #     # split the dataset into training & testing sets by date (not randomly splitting)
+        # split the dataset into training & testing sets by date (not randomly splitting)
         train_samples = int((1 - test_size) * len(X))
         prepped_result["X_train"] = X[:train_samples]
         prepped_result["Y_train"] = Y[:train_samples]
         prepped_result["X_test"]  = X[train_samples:]
         prepped_result["Y_test"]  = Y[train_samples:]
         if shuffle:
-    #         # shuffle the datasets for training (if shuffle parameter is set)
+            # shuffle the datasets for training (if shuffle parameter is set)
             shuffle_in_unison(prepped_result["X_train"], prepped_result["Y_train"])
             shuffle_in_unison(prepped_result["X_test"], prepped_result["Y_test"])
     else:    
         # split the dataset randomly
         prepped_result["X_train"], prepped_result["X_test"], prepped_result["Y_train"], prepped_result["Y_test"] = train_test_split(X, Y, test_size = test_size, shuffle = shuffle)
 
-    # # # retrieve test features from the original dataframe
+    # retrieve test features from the original dataframe
     prepped_result["Test_stock_data"] = prepped_result["Stock Data"]
 
     return prepped_result
 
 
-def create_model(sequence_length = window_size, n_features = 6, units = 256, cell = LSTM, n_layers = layers, dropout = 0.4, loss = loss_function, optimizer = "adam", bidirectional = False):
+def create_model(sequence_length = window_size, n_features = 6, units = 256, cell = LSTM, n_layers = layers, dropout = dropout_amount, loss = loss_function, optimizer = "adam", bidirectional = bidirectional_bool):
     model = Sequential()
     for i in range(0, n_layers):
         if i == 0: # initial layer
@@ -155,7 +159,6 @@ def create_model(sequence_length = window_size, n_features = 6, units = 256, cel
                 model.add(Bidirectional(cell(units, return_sequences = True)))
             else:
                 model.add(cell(units, return_sequences = True))
-        # add dropout after each layer
         model.add(Dropout(dropout))
     model.add(Dense(1, activation = "linear"))
     model.compile(loss = loss, metrics = ["mean_absolute_error"], optimizer = optimizer)
@@ -236,6 +239,13 @@ def predict(model, data):
 
     return prediction_stats
 
+def to_tflite(keras_model):
+    # convert to tflite model for deployment
+    tflite_converter = tf.lite.TFLiteConverter.from_saved_model(keras_model)
+    tflite_contents = tflite_converter.convert()
+    with tf.io.gfile.GFile(f"{basepath}/deployments/STM-StockPrediction-{today_date}.tflite", "wb") as file:
+        file.write(tflite_contents)
+
 
 '''
 Driver Code ........................................................................................................................................................................
@@ -247,11 +257,10 @@ model_descriptor = f"STM32MP1-{today_date}-{loss_function}-adam-lstm"
 model_file_name = os.path.join(f"{basepath}/results", f"STM-{today_date}.hdf5") 
 model = create_model()
 
-checkpoint = ModelCheckpoint(os.path.join(f"{basepath}/results", model_descriptor + ".hdf5"), save_weights_only = True, save_best_only = True, verbose = 0)
+checkpoint = ModelCheckpoint(os.path.join(f"{basepath}/results", model_descriptor + ".hdf5"), save_weights_only = False, save_best_only = True, verbose = 0)
 
 tensorboard = TensorBoard(log_dir = os.path.join(f"{basepath}/logs", model_descriptor)) # very optional for this project, but I'll keep it
 history = model.fit(data["X_train"], data["Y_train"], batch_size = 64, epochs = epochs, validation_data = (data["X_test"], data["Y_test"]), callbacks = [checkpoint, tensorboard], verbose = 1)
-
 
 model.load_weights(f"{basepath}/results/{model_descriptor}.hdf5")
 
@@ -293,6 +302,10 @@ else:
     print(f"Predicted price (based on Adj close): ${future_price_adjclose:.2f}")
     print(f"Predicted volume: {future_vol}")
 
+# left off here
+model.save(f"{basepath}/results") # apparently I cannot save it because it says it's a directory.. that's right
+saved_model_location = f"{basepath}/results"
+to_tflite(saved_model_location)
 
 # # plot true/predicted prices graph
 # final_df = get_final_df(model, data)
