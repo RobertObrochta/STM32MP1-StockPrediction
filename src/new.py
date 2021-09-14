@@ -27,6 +27,7 @@ import matplotlib.pyplot as matpl
 Initialization Code ..................................................................................................................................................................
 '''
 
+# depending on how this is called, this may need to be changed... Depends what the current working directory is, it might chop off the name
 basepath = os.getcwd()[:-4] # gets everything until /src
 
 # creates these directories...

@@ -1,11 +1,11 @@
 import plotly.graph_objects as plotly
-import main
+import new
 
 import pandas as pd
 from datetime import datetime
 
-stock_data = pd.read_csv(main.data_filename)
+stock_data = pd.read_csv(new.data_filename)
 
-fig = plotly.Figure(data = [plotly.Candlestick(x = stock_data['date'], open = stock_data['open'], high = stock_data['high'], low = stock_data['low'], close = stock_data['close'])])
+fig = plotly.Figure(data = [plotly.Candlestick(x = stock_data["Date"], open = stock_data["Open"], high = stock_data["High"], low = stock_data["Low"], close = stock_data["Close"])])
 
 fig.show()
