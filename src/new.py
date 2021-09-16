@@ -12,7 +12,6 @@ import warnings
 warnings.simplefilter(action = 'ignore', category = FutureWarning)
 
 import tensorflow as tf
-tf.executing_eagerly()
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
@@ -307,7 +306,7 @@ else:
 
 
 saved_model_location = f"{basepath}/saved_model" 
-model.save(saved_model_location, save_format="tf") # apparently this saves it as .hdf5, so we need to convert this to .pb to be read by the function below...
+model.save(saved_model_location, save_format="tf")
 to_tflite(saved_model_location)
 
 # # plot true/predicted prices graph
