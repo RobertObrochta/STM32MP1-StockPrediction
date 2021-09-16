@@ -2,6 +2,7 @@
 from datetime import date
 from dateutil.relativedelta import *
 import time
+from numpy.lib.npyio import save
 from tensorflow.python.keras.api._v1 import keras
 
 import yfinance as yfin
@@ -11,6 +12,7 @@ import warnings
 warnings.simplefilter(action = 'ignore', category = FutureWarning)
 
 import tensorflow as tf
+tf.executing_eagerly()
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
@@ -52,7 +54,7 @@ day_outlook = 1
 scale = True
 loss_function = "mae"
 window_size = 50
-epochs = 8
+epochs = 5
 layers = 2
 dropout_amount = 0.4
 bidirectional_bool  = False
@@ -239,11 +241,12 @@ def predict(model, data):
 
     return prediction_stats
 
+
 def to_tflite(keras_model):
     # convert to tflite model for deployment
     tflite_converter = tf.lite.TFLiteConverter.from_saved_model(keras_model)
     tflite_contents = tflite_converter.convert()
-    with tf.io.gfile.GFile(f"{basepath}/deployments/STM-StockPrediction-{today_date}.tflite", "wb") as file:
+    with tf.io.gfile.GFile(f"{basepath}/deployments/STM-StockPrediction-{today_date}.tflite", "wb") as file: # where the .tflite deployment file will be
         file.write(tflite_contents)
 
 
@@ -256,20 +259,20 @@ data["Stock Data"].to_csv(data_filename)
 model_descriptor = f"STM32MP1-{today_date}-{loss_function}-adam-lstm"
 model_file_name = os.path.join(f"{basepath}/results", f"STM-{today_date}.hdf5") 
 model = create_model()
+print("\n\n\n")
 
-checkpoint = ModelCheckpoint(os.path.join(f"{basepath}/results", model_descriptor + ".hdf5"), save_weights_only = False, save_best_only = True, verbose = 0)
+checkpoint = ModelCheckpoint(os.path.join(f"{basepath}/results", model_descriptor + ".hdf5"), save_weights_only = False, save_best_only = True, verbose = 0) # saves model every few checkpoints
 
 tensorboard = TensorBoard(log_dir = os.path.join(f"{basepath}/logs", model_descriptor)) # very optional for this project, but I'll keep it
 history = model.fit(data["X_train"], data["Y_train"], batch_size = 64, epochs = epochs, validation_data = (data["X_test"], data["Y_test"]), callbacks = [checkpoint, tensorboard], verbose = 1)
 
-model.load_weights(f"{basepath}/results/{model_descriptor}.hdf5")
-
-loss, mae = model.evaluate(data["X_test"], data["Y_test"], verbose = 1)
-
-if scale:
-    mean_absolute_error = data["Column Scaler"]["Adj Close"].inverse_transform([[mae]])[0][0]
-else:
-    mean_absolute_error = mae
+# these are needed together. Either they live, or they die
+# model.load_weights(f"{basepath}/results/{model_descriptor}.hdf5")
+# loss, mae = model.evaluate(data["X_test"], data["Y_test"], verbose = 1)
+# if scale:
+#     mean_absolute_error = data["Column Scaler"]["Adj Close"].inverse_transform([[mae]])[0][0]
+# else:
+#     mean_absolute_error = mae
 
 # All stats that we want presented on candlestick
 future_open = predict(model, data)[0]
@@ -302,9 +305,9 @@ else:
     print(f"Predicted price (based on Adj close): ${future_price_adjclose:.2f}")
     print(f"Predicted volume: {future_vol}")
 
-# left off here
-model.save(f"{basepath}/results") # apparently I cannot save it because it says it's a directory.. that's right
-saved_model_location = f"{basepath}/results"
+
+saved_model_location = f"{basepath}/saved_model" 
+model.save(saved_model_location, save_format="tf") # apparently this saves it as .hdf5, so we need to convert this to .pb to be read by the function below...
 to_tflite(saved_model_location)
 
 # # plot true/predicted prices graph
