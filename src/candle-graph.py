@@ -1,3 +1,4 @@
+
 import plotly.graph_objects as plotly
 import new
 import pandas as pd
@@ -9,6 +10,7 @@ load_predicted = [[new.date_with_outlook], [new.future_open], [new.future_high],
  
 all_data = plotly.Figure(data = [plotly.Candlestick(x = stock_data["Date"], open = stock_data["Open"], high = stock_data["High"], low = stock_data["Low"], close = stock_data["Close"])])
 predicted_data = plotly.Figure(data = [plotly.Candlestick(x = load_predicted[0], open = load_predicted[1], high = load_predicted[2], low = load_predicted[3], close = load_predicted[4])])
+predicted_data.update_layout(xaxis_rangeslider_visible = False)
 
 all_data.show()
 sleep(60)

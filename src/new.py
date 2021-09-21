@@ -21,8 +21,8 @@ from collections import deque
 
 import os
 import numpy as np
-import pandas as pd
-import random
+# import pandas as pd
+# import random
 import matplotlib.pyplot as matpl
 
 '''
@@ -175,45 +175,6 @@ def plot_graph(test_df):
     matpl.show()
 
 
-'''
-def get_final_df(model, data):
-    # Rewrite much of this function
-    print(data)
-    X_test = data["X_test"]
-    Y_test = data["Y_test"]
-
-    # perform prediction and get prices
-    Y_pred = model.predict(X_test)
-    if scale:
-        Y_test = np.squeeze(data["Column Scaler"]["Adj Close"].inverse_transform(np.expand_dims(Y_test, axis=0)))
-        Y_pred = np.squeeze(data["Column Scaler"]["Adj Close"].inverse_transform(Y_pred))
-
-    test_df = data["Test_stock_data"]
-    # add predicted future prices to the dataframe
-    test_df[f"Adjclose_{day_outlook}"] = Y_pred
-    # add true future prices to the dataframe
-    test_df[f"True_adjclose_{day_outlook}"] = Y_test
-    # sort the dataframe by date
-    test_df.sort_index(inplace=True)
-    final_df = test_df
-    # add the buy profit column
-    final_df["buy_profit"] = list(map(buy_profit, 
-                                    final_df["Adj Close"], 
-                                    final_df[f"adjclose_{day_outlook}"], 
-                                    final_df[f"true_adjclose_{day_outlook}"])
-                                    # since we don't have profit for last sequence, add 0's
-                                    )
-    # add the sell profit column
-    final_df["sell_profit"] = list(map(sell_profit, 
-                                    final_df["Adj Close"], 
-                                    final_df[f"adjclose_{day_outlook}"], 
-                                    final_df[f"true_adjclose_{day_outlook}"])
-                                    # since we don't have profit for last sequence, add 0's
-                                    )
-    return final_df
-'''
-
-
 def predict(model, data):
     prediction_stats = [] # every piece of data we want will be in this array
     last_sequence = data["last_sequence"][-window_size:]
@@ -265,14 +226,6 @@ checkpoint = ModelCheckpoint(os.path.join(f"{basepath}/results", model_descripto
 tensorboard = TensorBoard(log_dir = os.path.join(f"{basepath}/logs", model_descriptor)) # very optional for this project, but I'll keep it
 history = model.fit(data["X_train"], data["Y_train"], batch_size = 64, epochs = epochs, validation_data = (data["X_test"], data["Y_test"]), callbacks = [checkpoint, tensorboard], verbose = 1)
 
-# these are needed together. Either they live, or they die
-# model.load_weights(f"{basepath}/results/{model_descriptor}.hdf5")
-# loss, mae = model.evaluate(data["X_test"], data["Y_test"], verbose = 1)
-# if scale:
-#     mean_absolute_error = data["Column Scaler"]["Adj Close"].inverse_transform([[mae]])[0][0]
-# else:
-#     mean_absolute_error = mae
-
 # All stats that we want presented on candlestick
 future_open = predict(model, data)[0]
 future_high = predict(model, data)[1]
@@ -280,8 +233,6 @@ future_low = predict(model, data)[2]
 future_close = predict(model, data)[3]
 future_price_adjclose = predict(model, data)[4]
 future_vol = int(predict(model, data)[5])
-
-# accuracy_score = (len(final_df[final_df["sell_profit"] > 0]) + len(final_df[final_df["buy_profit"] > 0])) / len(final_df)
 
 
 # print prediction, candlestick stats
@@ -308,10 +259,6 @@ else:
 saved_model_location = f"{basepath}/saved_model" 
 model.save(saved_model_location, save_format="tf")
 to_tflite(saved_model_location)
-
-# # plot true/predicted prices graph
-# final_df = get_final_df(model, data)
-# plot_graph(final_df)
 
 '''
 End of Driver Code ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
