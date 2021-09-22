@@ -1,4 +1,8 @@
 
+'''
+Project MUST be run within ../src directory. Not doing so will lead to an error because of the basepath variable 
+'''
+
 import plotly.graph_objects as plotly
 import new
 import pandas as pd

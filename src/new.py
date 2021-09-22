@@ -1,4 +1,8 @@
 
+'''
+Project MUST be run within ../src directory. Not doing so will lead to an error because of the basepath variable 
+'''
+
 from datetime import date
 from dateutil.relativedelta import *
 
@@ -9,6 +13,7 @@ import warnings
 warnings.simplefilter(action = 'ignore', category = FutureWarning)
 
 import tensorflow as tf
+import tensorflow_model_optimization as tfmot
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
@@ -36,6 +41,8 @@ if not os.path.isdir(f"{basepath}/data"):
     os.mkdir(f"{basepath}/data")
 if not os.path.isdir(f"{basepath}/deployments"):
     os.mkdir(f"{basepath}/deployments")
+if not os.path.isdir(f"{basepath}/results/pruned_models"):
+    os.mkdir(f"{basepath}/results/pruned_models")
 
 # set date, create a file with that date, and saves it
 today_date = date.today()
@@ -48,7 +55,7 @@ day_outlook = 1
 scale = True
 loss_function = "mae"
 window_size = 50
-epochs = 3
+epochs = 5
 batch_size = 1 #used to be 64
 layers = 2
 dropout_amount = 0.4
@@ -157,7 +164,7 @@ def create_model(sequence_length = window_size, n_features = 6, units = 256, cel
             else:
                 model.add(cell(units, return_sequences = True))
         model.add(Dropout(dropout))
-    model.add(Dense(1, activation = "linear"))
+    model.add(Dense(2, activation = "linear"))
     model.compile(loss = loss, metrics = ["mean_absolute_error"], optimizer = optimizer)
     return model
 
@@ -215,6 +222,7 @@ data["Stock Data"].to_csv(data_filename)
 model_descriptor = f"STM32MP1-{today_date}-{loss_function}-adam-lstm"
 model_file_name = os.path.join(f"{basepath}/results", f"STM-{today_date}.hdf5") 
 model = create_model()
+
 print("\n\n\n")
 
 checkpoint = ModelCheckpoint(os.path.join(f"{basepath}/results", model_descriptor + ".hdf5"), save_weights_only = False, save_best_only = True, verbose = 0) # saves model every few checkpoints
@@ -252,9 +260,32 @@ else:
     print(f"Predicted volume: {future_vol}")
 
 
+# Normal Keras Model --> TFLite
 saved_model_location = f"{basepath}/saved_model" 
 model.save(saved_model_location, save_format="tf")
 to_tflite(saved_model_location)
+
+
+
+# Pruned Model and Pruned Model --> TFLite
+prune_low_magnitude = tfmot.sparsity.keras.prune_low_magnitude
+model_for_pruning = prune_low_magnitude(model)
+model_for_pruning.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
+model_for_pruning.summary()
+
+callbacks = [tfmot.sparsity.keras.UpdatePruningStep()] # redefining the use of callbacks
+model_for_pruning.fit(data["X_train"], data["Y_train"], batch_size=batch_size, epochs=epochs, validation_split=0.1, callbacks=callbacks)
+
+model_for_export = tfmot.sparsity.keras.strip_pruning(model_for_pruning)
+pruned_keras_file = f"{basepath}/results/pruned_models/pruned_model-KERAS.hdf5"
+tf.keras.models.save_model(model_for_export, pruned_keras_file, include_optimizer=False)
+
+converter = tf.lite.TFLiteConverter.from_keras_model(model_for_export)
+pruned_tflite_model = converter.convert()
+pruned_tflite_file = f"{basepath}/results/pruned_models/pruned_model-TFLITE.tflite"
+
+with open(pruned_tflite_file, 'wb') as f:
+  f.write(pruned_tflite_model)
 
 '''
 End of Driver Code ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
