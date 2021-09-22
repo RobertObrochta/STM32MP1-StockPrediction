@@ -1,9 +1,6 @@
 
 from datetime import date
 from dateutil.relativedelta import *
-import time
-from numpy.lib.npyio import save
-from tensorflow.python.keras.api._v1 import keras
 
 import yfinance as yfin
 
@@ -21,8 +18,6 @@ from collections import deque
 
 import os
 import numpy as np
-# import pandas as pd
-# import random
 import matplotlib.pyplot as matpl
 
 '''
@@ -53,7 +48,8 @@ day_outlook = 1
 scale = True
 loss_function = "mae"
 window_size = 50
-epochs = 5
+epochs = 3
+batch_size = 1 #used to be 64
 layers = 2
 dropout_amount = 0.4
 bidirectional_bool  = False
@@ -224,7 +220,7 @@ print("\n\n\n")
 checkpoint = ModelCheckpoint(os.path.join(f"{basepath}/results", model_descriptor + ".hdf5"), save_weights_only = False, save_best_only = True, verbose = 0) # saves model every few checkpoints
 
 tensorboard = TensorBoard(log_dir = os.path.join(f"{basepath}/logs", model_descriptor)) # very optional for this project, but I'll keep it
-history = model.fit(data["X_train"], data["Y_train"], batch_size = 64, epochs = epochs, validation_data = (data["X_test"], data["Y_test"]), callbacks = [checkpoint, tensorboard], verbose = 1)
+history = model.fit(data["X_train"], data["Y_train"], batch_size = batch_size, epochs = epochs, validation_data = (data["X_test"], data["Y_test"]), callbacks = [checkpoint, tensorboard], verbose = 1)
 
 # All stats that we want presented on candlestick
 future_open = predict(model, data)[0]
