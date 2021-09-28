@@ -1,10 +1,11 @@
 
 import numpy as np
-import tensorflow as tf
+import matplotlib.pyplot as mpp
+import tflite_runtime.interpreter as tflite
 
 tflite_model = "STM-StockPrediction-2021-09-20.tflite" # this will be updated depending on whenever this demo will be launched
 
-interpreter = tf.lite.Interpreter(model_path = tflite_model)
+interpreter = tflite.Interpreter(model_path = tflite_model)
 interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
@@ -17,4 +18,16 @@ interpreter.set_tensor(input_details[0]["index"], input_data)
 interpreter.invoke()
 
 output_data = interpreter.get_tensor(output_details[0]["index"])
-print("output_data =",output_data)
+results = np.squeeze(output_data)
+print("output_data (as a tensor) =",output_data)
+
+fig, ax = mpp.subplots(1, figsize=(12,6))
+
+mpp.show()
+
+# # high/low lines
+# mpp.plot([x[idx], x[idx]], [val['low'], val['high']], color='black')
+# # open marker
+# mpp.plot([x[idx], x[idx]-0.1], [val['open'], val['open']], color='black')
+# # close marker
+# mpp.plot([x[idx], x[idx]+0.1], [val['close'], val['close']], color='black')
