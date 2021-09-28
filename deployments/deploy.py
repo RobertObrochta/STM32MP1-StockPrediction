@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as mpp
 import tflite_runtime.interpreter as tflite
 
-tflite_model = "STM-StockPrediction-2021-09-20.tflite" # this will be updated depending on whenever this demo will be launched
+tflite_model = "STM-StockPrediction-2021-09-28.tflite" # this will be updated depending on whenever this demo will be launched
 
 interpreter = tflite.Interpreter(model_path = tflite_model)
 interpreter.allocate_tensors()
