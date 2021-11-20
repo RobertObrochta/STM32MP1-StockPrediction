@@ -7,7 +7,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 
-tflite_model = "STM-StockPrediction-2021-09-28.tflite" # this will be updated depending on whenever this demo will be launched
+tflite_model = "STM-StockPrediction-2021-09-28.tflite" 
 
 interpreter = tflite.Interpreter(model_path = tflite_model)
 interpreter.allocate_tensors()
@@ -22,8 +22,9 @@ interpreter.set_tensor(input_details[0]["index"], input_data)
 interpreter.invoke()
 
 output_data = interpreter.get_tensor(output_details[0]["index"]) # still need to interpret this in the context of an actual price
-results = np.squeeze(output_data)
-print("Output_data (as a tensor) =",output_data)
+results = np.squeeze(output_data) # can be adjusted for interpretation 
+print("Results (as a tensor) =", results)
+
 
 # Gtk object to make the final result appear on screen (for now, it is just the adj. closing price)
 class OutputText(Gtk.Window):
@@ -39,7 +40,7 @@ class OutputText(Gtk.Window):
                           }""" # styling the text
 
 
-        label = Gtk.Label(label = str(output_data))
+        label = Gtk.Label(label = str(results))
         label.set_name("output")
 
         gtk_provider.load_from_data(css.encode())
@@ -48,7 +49,7 @@ class OutputText(Gtk.Window):
         self.add(hbox)
 
         gtk_context = Gtk.StyleContext()
-        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), gtk_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        gtk_context.add_provider_for_screen(Gdk.Screen.get_default(), gtk_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         
 
 
