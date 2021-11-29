@@ -20,7 +20,7 @@ class OutputText(Gtk.Window):
                           }""" # styling the text
 
 
-        label = Gtk.Label(label = str(results))
+        label = Gtk.Label(label = "$" + str(results))
         label.set_name("output")
 
         gtk_provider.load_from_data(css.encode())
@@ -50,8 +50,11 @@ def interpret_tflite():
   output_data = interpreter.get_tensor(output_details[0]["index"])
   results = np.squeeze(output_data) # adjust for interpretation of price
   print("Results (as a tensor) =", results)
-
-  return results
+  
+  calculated_result = results * 51.10174082195948 # this value is just an average of the adj close from the dataset + 5 (to offset it)
+  print("Interpreted result (as adj. closing price):", calculated_result)
+  
+  return calculated_result
 
 
 def main():

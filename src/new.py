@@ -56,6 +56,7 @@ bidirectional_bool  = False
 
 date_with_outlook = today_date + relativedelta(days = +day_outlook)
 
+
 '''
 End of Initialization Code ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 '''
@@ -78,6 +79,17 @@ def gather_data(ticker = stock_ticker): # gathers data from yfin package, copies
 def prepare_data(n_steps = window_size, scale = scale, shuffle = True, lookup_step = day_outlook, split_by_date = True, test_size = 0.2, feature_columns = ["Volume", "Open", "High", "Low", "Close", "Adj Close"]):
 
     gathered_data = gather_data()
+    
+    
+    #calculating average for defining the tensor value
+    sum = 0
+    count = 0
+    for value in gathered_data["Adj Close"]:
+        sum += value
+        count += 1
+
+    avg_adj_close = sum / count
+    print("Average adj close:", avg_adj_close)
 
     prepped_result = {}
     prepped_result["Stock Data"] = gathered_data.copy()
