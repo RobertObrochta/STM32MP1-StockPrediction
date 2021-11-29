@@ -1,5 +1,4 @@
 
-import time
 import numpy as np
 import matplotlib.pyplot as mpp
 import tflite_runtime.interpreter as tflite
