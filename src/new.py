@@ -24,7 +24,7 @@ import matplotlib.pyplot as matpl
 Initialization Code ..................................................................................................................................................................
 '''
 
-# depending on how this is called, this may need to be changed... Depends what the current working directory is, it might chop off the name
+os.chdir('/home/stm32mp1/Robert/StockPrediction/src') # can now run in any directory on the terminal. This changes the pwd at runtime
 basepath = os.getcwd()[:-4] # gets everything until /src
 
 # creates these directories...
@@ -87,7 +87,6 @@ def prepare_data(n_steps = window_size, scale = scale, shuffle = True, lookup_st
     for value in gathered_data["Adj Close"]:
         sum += value
         count += 1
-
     avg_adj_close = sum / count
     print("Average adj close:", avg_adj_close)
 
