@@ -51,8 +51,8 @@ def interpret_tflite():
   results = np.squeeze(output_data) # adjust for interpretation of price
   print("Results (as a tensor) =", results)
   
-  calculated_result = results * 51.10174082195948 # this value is just an average of the adj close from the dataset + 5 (to offset it)
-  print("Interpreted result (as adj. closing price):", calculated_result)
+  calculated_result = results * 51.10174082195948 # this value is just an average of the adj close from the dataset + 5 (to offset it as a price)
+  print(f"Interpreted result (as adj. closing price): ${calculated_result}")
   
   return calculated_result
 
