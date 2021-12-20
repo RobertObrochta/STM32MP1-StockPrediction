@@ -19,6 +19,7 @@ from collections import deque
 import os
 import numpy as np
 import matplotlib.pyplot as matpl
+import shutil
 
 '''
 Initialization Code ..................................................................................................................................................................
@@ -222,6 +223,9 @@ Driver Code ....................................................................
 '''
 data = prepare_data()
 data["Stock Data"].to_csv(data_filename)
+
+# move .csv to ./deployments directory
+shutil.move(data_filename, f"{basepath}/deployments/STM-{today_date}.csv")
 
 model_descriptor = f"STM32MP1-{today_date}-{loss_function}-adam-lstm"
 model_file_name = os.path.join(f"{basepath}/results", f"STM-{today_date}.hdf5") 
