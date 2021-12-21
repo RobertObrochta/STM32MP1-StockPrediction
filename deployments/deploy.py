@@ -43,7 +43,7 @@ class OutputText(Gtk.Window):
 def parse_csv():
   test_file = data_filename
 
-  # error catching. defaults to 2021-12-20 file if not found
+  # error catching. defaults to 2021-12-20.csv file if not found
   try:
     reader = csv.reader(open(test_file, "r"), delimiter=',')
   except FileNotFoundError:
@@ -55,19 +55,16 @@ def parse_csv():
   for item in reader:
     no_dates = item[1:]
     x.append(no_dates)
-  train_set = np.array(x, dtype = np.float32)[0:50]
+  test_set = np.array(x, dtype = np.float32)[0:50]
 
-  features = train_set.copy()
-  features = np.array(features, dtype = np.float32)[0:50]
-
-  return train_set
+  return test_set
 
 
 def interpret_tflite():
   tflite_model = tflite_filename
   features = parse_csv()
 
-  # error catching. defaults to 2021-12-20.tflte file
+  # error catching. defaults to 2021-12-20.tflite file
   try:
     interpreter = tflite.Interpreter(model_path = tflite_model)
   except ValueError:
@@ -76,17 +73,17 @@ def interpret_tflite():
 
   input_details = interpreter.get_input_details()
   output_details = interpreter.get_output_details()
-  interpreter.resize_tensor_input(input_details[0]["index"], [1, 50, 6])
+  interpreter.resize_tensor_input(input_details[0]["index"], (1, 50, 6))
   interpreter.allocate_tensors()
 
-  input_data10 = np.expand_dims(features, axis = 0)
+  input_data = np.expand_dims(features, axis = 0)
   
-  interpreter.set_tensor(input_details[0]["index"], input_data10)
+  interpreter.set_tensor(input_details[0]["index"], input_data)
   interpreter.invoke()
 
+  prediction = interpreter.get_tensor(output_details[0]["index"])
   print(output_details)
-  output_data = interpreter.get_tensor(output_details[0]["index"])
-  results = np.squeeze(output_data)
+  results = np.squeeze(prediction)
   print("Results (as a tensor) =", results)
 
   calculated_result = results * 100 - 10
@@ -102,7 +99,7 @@ def main():
   window.connect("destroy", Gtk.main_quit)
   window.show_all()
   GLib.timeout_add(30000, Gtk.main_quit, window) # exits the Gtk main loop after 30 seconds
-  window.fullscreen() 
+  #window.fullscreen() 
   Gtk.main()
 
 
