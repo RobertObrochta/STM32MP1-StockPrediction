@@ -28,7 +28,7 @@ class OutputText(Gtk.Window):
                           }""" # styling the text
 
 
-        label = Gtk.Label(label = "$" + str(results))
+        label = Gtk.Label(label = "Closing Price: $" + str(results))
         label.set_name("output")
 
         gtk_provider.load_from_data(css.encode())
@@ -39,6 +39,7 @@ class OutputText(Gtk.Window):
         gtk_context = Gtk.StyleContext()
         gtk_context.add_provider_for_screen(Gdk.Screen.get_default(), gtk_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
+just_adj_close = [] # adding the adj_close values alone in order to denormalize the output value
 
 def parse_csv():
   test_file = data_filename
@@ -53,8 +54,9 @@ def parse_csv():
   next(reader)
   x = []
   for item in reader:
-    no_dates = item[1:]
-    x.append(no_dates)
+    features = item[1:]
+    just_adj_close.append(float(item[-2]))
+    x.append(features)
   test_set = np.array(x, dtype = np.float32)[0:50]
 
   return test_set
@@ -72,7 +74,7 @@ def interpret_tflite():
     interpreter = tflite.Interpreter(model_path = tflite_model)
 
   input_details = interpreter.get_input_details()
-  output_details = interpreter.get_output_details()
+  output_details = interpreter.get_output_details() 
   interpreter.resize_tensor_input(input_details[0]["index"], (1, 50, 6))
   interpreter.allocate_tensors()
 
@@ -81,15 +83,17 @@ def interpret_tflite():
   interpreter.set_tensor(input_details[0]["index"], input_data)
   interpreter.invoke()
 
-  prediction = interpreter.get_tensor(output_details[0]["index"])
-  print(output_details)
-  results = np.squeeze(prediction)
-  print("Results (as a tensor) =", results)
+  normalized_prediction = interpreter.get_tensor(output_details[0]["index"])
 
-  calculated_result = results * 100 - 10
-  print(f"Interpreted result (as adj. closing price): ${calculated_result}")
+  min_ac = min(just_adj_close) # extract min and max adjusted close from array list
+  max_ac = max(just_adj_close)
+  np_result = np.squeeze(normalized_prediction) # the normalized prediction from the 6 features
+  print("Normalized prediction =", np_result)
+
+  denormalized_prediction = round(np_result * (max_ac - min_ac) + min_ac, 2) # denormalization of specifically the adjusted close value. Yields a stock price
+  print("denormalized_prediction =", denormalized_prediction)
   
-  return calculated_result
+  return denormalized_prediction
 
 
 def main():
@@ -99,7 +103,7 @@ def main():
   window.connect("destroy", Gtk.main_quit)
   window.show_all()
   GLib.timeout_add(30000, Gtk.main_quit, window) # exits the Gtk main loop after 30 seconds
-  #window.fullscreen() 
+  window.fullscreen() 
   Gtk.main()
 
 
